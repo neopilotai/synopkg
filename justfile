@@ -76,11 +76,11 @@ check-unused-dependencies:
 
 # Run the release github action locally
 run-release-action:
-    act --workflows .github/workflows/release.yml workflow_dispatch
+    act --workflows .github/workflows/release.yaml workflow_dispatch
 
 # Run the CI github action locally
 run-ci-action:
-    act --workflows .github/workflows/ci.yml pull_request
+    act --workflows .github/workflows/ci.yaml pull_request
 
 # ==============================================================================
 # Benchmark & Profile
@@ -378,6 +378,32 @@ create-npm-root-package-json:
     const json = JSON.stringify(nextPkg, null, 2);
     console.log(json);
     fs.writeFileSync(destPath, json);
+
+# Install the generated npm package and check that the CLI runs
+smoke-test-npm-package:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+
+    # Point the root package at the locally built platform package, so the
+    # install resolves from disk instead of the npm registry.
+    node -e "
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const { pathToFileURL } = require('node:url');
+    const rootPath = path.resolve(process.env.NODE_ROOT_PKG_DIR_PATH, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(rootPath, 'utf8'));
+    pkg.optionalDependencies = {
+      [process.env.NODE_PKG_NAME]: pathToFileURL(path.resolve(process.env.NODE_PKG_DIR_PATH)).href,
+    };
+    fs.writeFileSync(rootPath, JSON.stringify(pkg, null, 2));
+    "
+
+    smoke_dir="$(mktemp -d)"
+    root_package="$(node -p "require('node:path').resolve(process.env.NODE_ROOT_PKG_DIR_PATH)")"
+    cd "$smoke_dir"
+    npm init --yes
+    npm install --install-links --no-audit --no-fund "$root_package"
+    npx --no-install synopkg --version
 
 # ==============================================================================
 # Publish

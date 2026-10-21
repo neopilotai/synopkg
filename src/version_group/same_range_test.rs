@@ -225,6 +225,42 @@ async fn instance_in_a_same_range_group_satisfies_every_other_but_mismatches_its
 }
 
 #[tokio::test]
+async fn tmp_repro_complex_semver() {
+  let ctx = TestBuilder::new()
+    .with_packages(vec![
+      json!({
+        "name": "package-a",
+        "dependencies": {
+          "foo": ">=1.0.0 <2.0.0"
+        }
+      }),
+      json!({
+        "name": "package-b",
+        "dependencies": {
+          "foo": "^1.2.3"
+        }
+      }),
+    ])
+    .with_semver_group(json!({
+      "packages": ["package-a"],
+      "range": "^"
+    }))
+    .with_version_groups(vec![
+      json!({
+        "dependencyTypes": ["local"],
+        "isIgnored": true
+      }),
+      json!({
+        "dependencies": ["foo"],
+        "policy": "sameRange"
+      }),
+    ])
+    .run()
+    .await;
+  println!("{:?}", ctx.instances.len());
+}
+
+#[tokio::test]
 async fn instance_in_a_same_range_group_does_not_satisfy_another() {
   let ctx = TestBuilder::new()
     .with_packages(vec![

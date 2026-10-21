@@ -1,4 +1,4 @@
-name: Benchmark v14
+name: Benchmark
 
 on:
   pull_request:

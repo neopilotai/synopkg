@@ -1,4 +1,4 @@
-name: Verify v14
+name: CI
 
 on:
   pull_request:

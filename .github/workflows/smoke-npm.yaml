@@ -1,0 +1,58 @@
+name: Smoke Test npm Artifacts
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke (${{ matrix.build.NAME }})
+    runs-on: ${{ matrix.build.OS }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          - NAME: linux-x64-glibc
+            OS: ubuntu-latest
+            TARGET: x86_64-unknown-linux-gnu
+          - NAME: darwin-x64
+            OS: macos-15-intel
+            TARGET: x86_64-apple-darwin
+          - NAME: darwin-arm64
+            OS: macos-latest
+            TARGET: aarch64-apple-darwin
+          - NAME: win32-x64-msvc
+            OS: windows-2022
+            TARGET: x86_64-pc-windows-msvc
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Node
+        uses: ./.github/actions/setup-node
+      - name: Set up Rust build
+        uses: ./.github/actions/setup-rust-build
+        with:
+          target: ${{ matrix.build.TARGET }}
+          cache: "false"
+      - name: Build Rust binary
+        uses: ./.github/actions/build-rust-binary
+        with:
+          target: ${{ matrix.build.TARGET }}
+      - name: Install dependencies
+        shell: bash
+        run: npm install
+      - name: Create npm packages
+        shell: bash
+        run: |
+          just --dotenv-filename .env.${{ matrix.build.NAME }} create-npm-binary-package
+          just --dotenv-filename .env.${{ matrix.build.NAME }} create-npm-root-package
+      - name: Smoke test the npm package
+        shell: bash
+        run: just --dotenv-filename .env.${{ matrix.build.NAME }} smoke-test-npm-package
